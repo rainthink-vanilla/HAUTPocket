@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+.toolchain/
+memory/
+docs/PLAN.md
+local.properties
+**/build/
+*.jks
+*.keystore
+keystore.properties
+.idea/
+*.iml
+captures/
+deliverables/
