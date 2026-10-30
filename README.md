@@ -6,16 +6,16 @@
 
 本项目作为独立仓库维护。业务代码针对河南工业大学重新实现，复用了部分构建配置与 Gradle Wrapper；功能和界面并非与 ZZUPocket 完全相同，也不代表原作者参与或认可本项目。
 
-[下载 1.0.0 正式版](https://github.com/rainthink-vanilla/HAUTPocket/releases/tag/v1.0.0) · [原项目 ZZUPocket](https://github.com/3beuml/ZZUPocket) · [课表方案对比](docs/TIMETABLE-COMPARISON.md)
+[下载 1.0.1 正式版](https://github.com/rainthink-vanilla/HAUTPocket/releases/tag/v1.0.1) · [原项目 ZZUPocket](https://github.com/3beuml/ZZUPocket) · [课表方案对比](docs/TIMETABLE-COMPARISON.md)
 
-**当前正式版为 1.0.0。提供课表、宿舍用量、独立图书查询、座位预约入口、专注计时和主题/文字调色盘。安装包采用关闭调试、R8优化的 Release 构建与发行签名，详见[发布说明](docs/RELEASE-v1.0.0.md)。教务网页和智能水电仍未完成河南工业大学真实账户端到端联调；正式版本号不代表所有第三方接口均已验证。**
+**当前正式版为 1.0.1。修复教务课表白屏、“第N周”漏解析与内部框架跳转误报，改进教务和图书馆登录会话保存，并使用新的应用图标。安装包采用关闭调试、R8优化的 Release 构建与发行签名，详见[发布说明](docs/RELEASE-v1.0.1.md)。教务登录、页面显示和导入预览已通过用户本机验证；智能水电仍待真实账户端到端联调，正式版本号不代表所有第三方接口均已验证。**
 
 ## 功能与状态
 
 | 功能 | 当前实现 | 验证边界 |
 |---|---|---|
 | 双校区 | 莲花街 / 嵩山路切换；手工房间与读数按校区隔离；在线房间由用户确认归属 | 本地存储与计算可单元测试，界面待设备检查 |
-| 课表 | 官方教务网页导入，或大学课表 .md/.json 文件导入；日列表与七天周表可切换，连续同课程合并为跨节块、冲突并排，支持校历、作息和导出 | 文件互通可自动验证，真实学校登录流程及周表界面待真机验证 |
+| 课表 | 官方教务网页导入，或大学课表 .md/.json 文件导入；日列表与七天周表可切换，连续同课程合并为跨节块、冲突并排，支持校历、作息和导出 | 文件互通自动验证；1.0.1用户确认本机教务登录、课表显示与导入预览正常，其他账户及双校区作息仍需核验 |
 | 智能水电 | 输入本人校园卡账号，查询已绑定房间，再读取各房间的水电表计 | 使用社区记录的接口和河南工业大学历史代码 43，当前租户有效性待真实账号验证 |
 | 在线读数 | 显示设备名称、余额、今日用量、累计购入、状态和查询时间，保存kWh用电趋势 | 电量采样按用户确认统一为kWh，余额保留服务原文；缓存不代表实时值 |
 | 手工记录 | 房间标签、可选服务端 ID、独立表计、剩余量、期间充值量和区间使用量 | 充值量未知时不计算消费；不和在线不同单位的读数混算 |
@@ -81,12 +81,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
 
 日常调试产物：`app/build/outputs/apk/debug/app-debug.apk`。正式构建先生成未签名Release APK，由维护者使用本机私有签名材料和公开轮换证明签名；私钥不随仓库或源码ZIP分发。维护说明见[发行签名](docs/SIGNING.md)。
 
-正式交付为 `HAUTPocket-1.0.0.apk`、`HAUTPocket-1.0.0-source.zip` 与 `SHA256SUMS.txt`，可从[GitHub Release](https://github.com/rainthink-vanilla/HAUTPocket/releases/tag/v1.0.0)下载；完整验证范围见[验证记录](docs/VERIFICATION.md)。
+正式交付为 `HAUTPocket-1.0.1.apk`、`HAUTPocket-1.0.1-source.zip` 与 `SHA256SUMS.txt`，可从[GitHub Release](https://github.com/rainthink-vanilla/HAUTPocket/releases/tag/v1.0.1)下载；完整验证范围见[验证记录](docs/VERIFICATION.md)。
 
 ## 隐私与数据
 
 - 无自建后端、广告或统计 SDK。数据仅保存在本机和学校/完美校园官方服务之间。
-- 教务登录密码只填写在学校页面，不被原生代码读取。WebView 保存的登录会话可清除。
+- 教务登录密码只填写在学校页面，不被原生代码读取。教务、查书与选座共用本机WebView会话，页面结束和后台切换时保存，可主动清除；学校使会话过期后仍需认证。见[会话说明](docs/WEB-SESSIONS.md)。
 - 原生水电查询只使用本人校园卡账号；账号以 Android Keystore AES-GCM 加密保存。房间查询凭据 `roomverify` 只存在本次查询内存中，不写入课表、日志或本地快照。
 - 在线房间缓存只保存凭据的 SHA-256 索引、房间名、表计显示值与更新时间。课表、房间标签、手工记录保存在应用私有存储。
 - 禁用 Android 自动备份，避免系统备份带走网页会话和个人记录。卸载会清除本机数据；本版可导入/导出课表，但没有全应用数据备份/恢复界面。

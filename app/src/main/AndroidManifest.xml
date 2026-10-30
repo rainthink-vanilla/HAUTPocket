@@ -12,7 +12,8 @@
     </queries>
     <application
         android:label="口袋工大"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/Theme.HAUTPocket"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"

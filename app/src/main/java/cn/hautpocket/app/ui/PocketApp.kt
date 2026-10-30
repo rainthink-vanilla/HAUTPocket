@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import cn.hautpocket.app.OfficialWebActivity
+import cn.hautpocket.app.OfficialWebSession
 import cn.hautpocket.app.data.AccountVault
 import cn.hautpocket.app.data.WanxiaoClient
 import cn.hautpocket.app.data.DailyHistory
@@ -65,6 +66,7 @@ fun PocketApp(state: PocketState, save: (PocketState) -> Unit, warning: String?,
     val context = LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var dialog by remember { mutableStateOf<String?>(null) }
+    var clearingSession by remember { mutableStateOf(false) }
     var meterSelected by remember { mutableStateOf<Meter?>(null) }
     var editingMeter by remember { mutableStateOf<Meter?>(null) }
     var parsedImport by remember { mutableStateOf<ScheduleParser.Result?>(null) }
@@ -398,20 +400,21 @@ fun PocketApp(state: PocketState, save: (PocketState) -> Unit, warning: String?,
         "stopFocus" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text("结束本次专注？") }, text = { Text("未完成的专注不会计入已完成时长。") }, confirmButton = { TextButton(onClick = { stopFocus(); dialog = null }) { Text("结束") } }, dismissButton = { TextButton(onClick = { dialog = null }) { Text("继续专注") } })
         "wanxiao" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text("前往完美校园") }, text = { Text("没有找到可直接打开的完美校园 App。请在手机应用商店安装，绑定河南工业大学校园卡后使用。\n\n水电入口会因校区而异，自动读取仍待核实。") }, confirmButton = { TextButton(onClick = { dialog = null; open("一卡通 · 学校说明", OfficialServices.CARD_HELP) }) { Text("查看学校说明") } }, dismissButton = { TextButton(onClick = { dialog = null }) { Text("关闭") } })
         "cloudCampus" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text("前往云上工大") }, text = { Text("没有找到可直接打开的云上工大 App。请在手机应用商店搜索并安装“云上工大”，然后重试。") }, confirmButton = { TextButton(onClick = { dialog = null; open("云上工大 · 学校说明", OfficialServices.HELP) }) { Text("查看学校说明") } }, dismissButton = { TextButton(onClick = { dialog = null }) { Text("关闭") } })
-        "about" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text("口袋工大 1.0.0") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        "about" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text("口袋工大 1.0.1") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("面向莲花街、嵩山路两个校区的非官方校园助手。")
             Text("已实现\n• 课表 JSON 导入、周次/节次解析和离线展示\n• 学校网页登录与课表导入流程\n• 智能水电原生查询客户端、已绑房间与表计展示\n• 双校区房间归属与独立手工读数\n• 本地专注计时与完成记录")
             Text("尚待联调\n• 教务账号真机导入\n• 智能水电接口在河南工大账户上的有效性\n• 两校区各自的房间名称、表计类型与单位")
             Text("读数标注手工来源，不作实时余额。专注完成支持后台通知，需开启系统通知；准时提醒受系统授权和后台限制影响。登录仅在官方网页完成，会话由本应用 WebView 保存；可在校园页清除。")
             Text("设计与 Gradle Wrapper 参考 ZZUPocket（MIT）。不代表河南工业大学或完美校园官方。")
         } }, confirmButton = { TextButton(onClick = { dialog = null }) { Text("知道了") } })
-        "logout" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text("清除学校网页会话？") }, text = { Text("将退出本应用内学校网页的登录状态。课表、房间和读数会保留。") }, confirmButton = { TextButton(onClick = {
-            android.webkit.CookieManager.getInstance().removeAllCookies(null)
-            android.webkit.CookieManager.getInstance().flush()
-            android.webkit.WebStorage.getInstance().deleteAllData()
-            dialog = null
-            Toast.makeText(context, "网页登录会话已清除", Toast.LENGTH_SHORT).show()
-        }) { Text("清除会话") } }, dismissButton = { TextButton(onClick = { dialog = null }) { Text("取消") } })
+        "logout" -> AlertDialog(onDismissRequest = { if (!clearingSession) dialog = null }, title = { Text("清除学校网页会话？") }, text = { Text("学校网页登录状态会自动保存在本机，服务端过期后仍需重新认证。清除后将退出本应用内学校网页的登录状态，课表、房间和读数会保留。") }, confirmButton = { TextButton(enabled = !clearingSession, onClick = {
+            clearingSession = true
+            OfficialWebSession.clear {
+                clearingSession = false
+                dialog = null
+                Toast.makeText(context, "网页登录会话已清除", Toast.LENGTH_SHORT).show()
+            }
+        }) { Text(if (clearingSession) "正在清除…" else "清除会话") } }, dismissButton = { TextButton(enabled = !clearingSession, onClick = { dialog = null }) { Text("取消") } })
     }
     parsedImport?.let { result -> ScheduleImportDialog(result, state.courses.isNotEmpty(), { parsedImport = null }) { mode, calendar ->
         runCatching {

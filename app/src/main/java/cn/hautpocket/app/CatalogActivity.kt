@@ -90,15 +90,15 @@ class CatalogActivity : ComponentActivity() {
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         isFocusable = false; isFocusableInTouchMode = false
         setOnTouchListener { _, _ -> !official }
-        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+        OfficialWebSession.configure(this)
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (OfficialServices.canBrowse(request.url.toString())) return false
-                error = "链接超出已核实的学校服务范围，请使用学校官方渠道继续。"
+                if (OfficialServices.canNavigate(request.url.toString(), request.isForMainFrame)) return false
+                if (request.isForMainFrame) error = "已阻止未核实的页面跳转（${OfficialServices.navigationOrigin(request.url.toString())}）。请使用学校官方入口。"
                 return true
             }
-            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) { generation++; executing = false }
-            override fun onPageFinished(view: WebView, url: String) { readPage() }
+            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) { generation++; executing = false; error = null }
+            override fun onPageFinished(view: WebView, url: String) { OfficialWebSession.persist(); readPage() }
             override fun onReceivedSslError(view: WebView, sslHandler: SslErrorHandler, sslError: SslError) { sslHandler.cancel(); error = "学校网页证书校验失败"; busy = false }
             override fun onReceivedError(view: WebView, request: WebResourceRequest, failure: WebResourceError) {
                 if (request.isForMainFrame) { error = "无法连接馆藏系统，请检查网络后重试。"; busy = false }
@@ -184,6 +184,6 @@ class CatalogActivity : ComponentActivity() {
         }
     }
     override fun onStart() { super.onStart(); active = true; handler.post(poll) }
-    override fun onStop() { active = false; handler.removeCallbacks(poll); super.onStop() }
+    override fun onStop() { active = false; handler.removeCallbacks(poll); OfficialWebSession.persist(); super.onStop() }
     override fun onDestroy() { generation++; handler.removeCallbacksAndMessages(null); engine?.destroy(); engine = null; super.onDestroy() }
 }

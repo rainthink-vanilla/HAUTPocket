@@ -56,7 +56,7 @@ try {
     foreach ($name in @('README.md','LICENSE','THIRD_PARTY_NOTICES.md','.gitignore','.gitattributes','build.gradle.kts','settings.gradle.kts','gradle.properties','gradlew','gradlew.bat','app/build.gradle.kts','app/proguard-rules.pro')) {
         $files += Get-Item -LiteralPath (Join-Path $projectRoot $name)
     }
-foreach ($directory in @('app/src','gradle','docs','tools','licenses','signing')) {
+foreach ($directory in @('app/src','gradle','docs','tools','licenses','signing','artwork')) {
         $files += Get-ChildItem -LiteralPath (Join-Path $projectRoot $directory) -File -Recurse
     }
     $internalPlan = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $projectRoot 'docs') 'PLAN.md'))

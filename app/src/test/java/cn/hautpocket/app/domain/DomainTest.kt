@@ -70,7 +70,9 @@ class DomainTest {
     }
     @Test fun officialUrlPolicyRejectsImpersonationAndUntrustedSchemes() {
         assertTrue(OfficialServices.canBrowse(OfficialServices.PORTAL))
-        assertTrue(OfficialServices.canImportSchedule(OfficialServices.TEACHING))
+        assertTrue(OfficialServices.canBrowse(OfficialServices.TEACHING))
+        assertTrue(OfficialServices.canImportSchedule("https://jwglxt.haut.edu.cn/jwglxt/xtgl/login_slogin.html"))
+        assertFalse(OfficialServices.canImportSchedule(OfficialServices.TEACHING))
         for (url in listOf("http://jwglxt.haut.edu.cn/jwglxt/", "https://jwglxt.haut.edu.cn.evil.com/jwglxt/",
             "https://evil.com/?next=https://haut.edu.cn", "javascript:alert(1)", "file:///tmp/private", "https://evil@jwglxt.haut.edu.cn/jwglxt/",
             "https://jwglxt.haut.edu.cn:444/jwglxt/")) {

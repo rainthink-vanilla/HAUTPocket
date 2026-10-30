@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ScheduleParserTest {
+    @Test fun acceptsPrefixedSingleWeeksWithoutDroppingTheCourse() {
+        assertEquals(listOf(19), ScheduleParser.weeks("第19周"))
+        assertEquals(listOf(1, 2, 3, 6), ScheduleParser.weeks("第1-3周，第6周"))
+        assertTrue(runCatching { ScheduleParser.weeks("1第9周") }.isFailure)
+        val result = ScheduleParser.parse("""{"kbList":[{"kcmc":"合成示例课程","xqj":"4","zcd":"第19周","jcs":"5-6"}]}""", Campus.LIANHUA)
+        assertEquals(0, result.skipped)
+        assertEquals(listOf(19), result.courses.single().weeks)
+    }
+
     @Test fun parsesOddEvenAndSeparateWeekRanges() {
         assertEquals(listOf(1, 3, 5, 7, 10, 12), ScheduleParser.weeks("1-8周(单),10-12周(双)"))
         assertEquals(listOf(1, 2, 3, 9, 10, 12), ScheduleParser.weeks("1-3周，9-10周、12周"))

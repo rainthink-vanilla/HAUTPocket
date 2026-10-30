@@ -1,5 +1,9 @@
 # Third-party notices
 
+## Launcher artwork
+
+`artwork/launcher.jpg` is the image supplied by the user for the 1.0.1 app icon. Generated launcher resources preserve the image content, including its existing text and watermark, with scaling and white padding for Android icon masks. No authorship of the supplied illustration or university emblem is claimed. The project's MIT code license does not grant additional rights to third-party artwork or emblems.
+
 ## ZZUPocket
 
 Source: https://github.com/3beuml/ZZUPocket

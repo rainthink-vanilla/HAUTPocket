@@ -24,7 +24,7 @@ tools/        Windows工具链、构建、打包及课表互通脚本
 
 Windows也可按README使用便携工具链脚本。Windows上的Java AF_UNIX临时目录兼容处理仅在 `tools/build.ps1` 内，对系统Java配置没有修改。
 
-`tools/build.ps1 -Release`为发布检查：Debug/Release各50项JVM测试、R8编译和Release Lint。`sign-release.ps1`使用不入库的本机私钥签名，`package.ps1 -Release`核验后生成正式APK、源码ZIP和校验清单。签名及轮换见[SIGNING](SIGNING.md)；实际设备、学校账号与水电联调边界见[验证记录](VERIFICATION.md)。
+`tools/build.ps1 -Release`为发布检查：Debug/Release各55项JVM测试、R8编译和Release Lint。`sign-release.ps1`使用不入库的本机私钥签名，`package.ps1 -Release`核验后生成正式APK、源码ZIP和校验清单。签名及轮换见[SIGNING](SIGNING.md)；实际设备、学校账号与水电联调边界见[验证记录](VERIFICATION.md)。
 
 ## 课表互通验证
 

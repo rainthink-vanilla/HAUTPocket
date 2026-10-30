@@ -87,6 +87,10 @@ class OfficialWebActivity : ComponentActivity() {
                 bottomBar = { if (importEnabled) Surface(tonalElevation = 3.dp) {
                     Column(Modifier.navigationBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("在学校页面登录，进入“学生课表查询”并选好学期。", style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Text("登录状态会自动保存；过期后需重新认证。", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                            TextButton(onClick = { web?.loadUrl(OfficialServices.STUDENT_PORTAL) }) { Text("统一认证入口") }
+                        }
                         Button(onClick = { importSchedule() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                             Text(if (busy) "正在读取课表…" else "导入当前学期课表")
                         }
@@ -127,12 +131,16 @@ class OfficialWebActivity : ComponentActivity() {
         settings.allowContentAccess = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         settings.setSupportMultipleWindows(false)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+        OfficialWebSession.configure(this)
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val destination = request.url.toString()
-                if (OfficialServices.canBrowse(destination)) return false
-                error = "该链接超出已核实的服务域名。如学校使用外部认证，请用右上角浏览器继续。"
+                if (OfficialServices.canNavigate(destination, request.isForMainFrame)) return false
+                (if (request.isForMainFrame) OfficialServices.secureTeachingLink(destination, request.method) else null)?.let { secure ->
+                    view.post { view.loadUrl(secure) }
+                    return true
+                }
+                if (request.isForMainFrame) error = "已阻止未核实的页面跳转（${OfficialServices.navigationOrigin(destination)}）。请核对学校认证入口后重试。"
                 return true
             }
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
@@ -141,12 +149,15 @@ class OfficialWebActivity : ComponentActivity() {
                 currentUrl = url
                 host = runCatching { Uri.parse(url).host.orEmpty() }.getOrDefault("")
                 loading = true
+                error = null
                 libraryCanContinue = libraryFlow && OfficialServices.isLibraryH5(url)
                 if (libraryFlow && OfficialServices.isLibraryLogin(url)) libraryAuthPending = true
                 if (busy) { importGeneration++; busy = false }
             }
             override fun onPageFinished(view: WebView, url: String) {
                 loading = false
+                OfficialWebSession.persist()
+                applyTeachingLayout()
                 applyLibraryDesign()
                 if (libraryFlow && libraryAuthPending && OfficialServices.isLibraryH5(url)) {
                     libraryAuthPending = false
@@ -157,6 +168,7 @@ class OfficialWebActivity : ComponentActivity() {
             override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
                 currentUrl = url
                 host = Uri.parse(url).host.orEmpty()
+                handler.post { applyTeachingLayout() }
                 // History API navigation does not necessarily emit onPageFinished.
                 if (libraryFlow || catalogFlow) handler.post { applyLibraryDesign() }
             }
@@ -173,6 +185,13 @@ class OfficialWebActivity : ComponentActivity() {
             }
         }
         loadUrl(url)
+    }
+
+    private fun applyTeachingLayout() {
+        if (OfficialServices.isTeachingSchedule(web?.url.orEmpty())) {
+            val script = assets.open("teaching-layout.js").bufferedReader().use { it.readText() }
+            web?.evaluateJavascript(script, null)
+        }
     }
 
     private fun applyLibraryDesign() {
@@ -236,6 +255,11 @@ class OfficialWebActivity : ComponentActivity() {
         if (!OfficialServices.canBrowse(url)) return
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
             .onFailure { Toast.makeText(this, "未找到可用浏览器", Toast.LENGTH_SHORT).show() }
+    }
+
+    override fun onStop() {
+        OfficialWebSession.persist()
+        super.onStop()
     }
 
     override fun onDestroy() {

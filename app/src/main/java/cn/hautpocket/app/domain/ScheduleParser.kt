@@ -20,7 +20,7 @@ object ScheduleParser {
         val parts = normalized.split(Regex("[,;；]"))
         for (part in parts) {
             if (part.isBlank()) continue
-            val match = Regex("^\\s*(\\d+)(?:\\s*-\\s*(\\d+))?\\s*(?:周)?\\s*(?:[（(]?([单双])[）)]?)?\\s*$").matchEntire(part)
+            val match = Regex("^\\s*(?:第\\s*)?(\\d+)(?:\\s*-\\s*(\\d+))?\\s*(?:周)?\\s*(?:[（(]?([单双])[）)]?)?\\s*$").matchEntire(part)
                 ?: throw IllegalArgumentException("无法识别周次：$part")
             val first = match.groupValues[1].toInt()
             val last = match.groupValues[2].toIntOrNull() ?: first

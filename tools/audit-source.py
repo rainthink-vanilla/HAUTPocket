@@ -14,6 +14,8 @@ patterns = {
     'JWT': re.compile(r'\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'),
 }
 binary_allow = {'gradle/wrapper/gradle-wrapper.jar','signing/lineage.bin'}
+binary_allow.add('artwork/launcher.jpg')
+binary_allow.add('app/src/main/res/drawable-nodpi/ic_launcher_artwork.png')
 issues = []
 for name in paths:
     if name.startswith(('.toolchain/','.private-signing/','memory/','deliverables/')) or name.endswith(('.keystore','.jks','.p12','.apk','.idsig')) or name == 'local.properties':
