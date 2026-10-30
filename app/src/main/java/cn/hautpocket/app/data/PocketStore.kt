@@ -7,6 +7,7 @@ import org.json.JSONObject
 
 /** Private app storage; credentials/cookies are never copied here. */
 class PocketStore(context: Context) {
+    companion object { private val lock = Any() }
     private val prefs = context.getSharedPreferences("pocket", Context.MODE_PRIVATE)
     var loadWarning: String? = null
         private set
@@ -19,9 +20,16 @@ class PocketStore(context: Context) {
         }
     }
 
-    fun save(state: PocketState) {
+    fun save(state: PocketState) = synchronized(lock) {
         check(loadWarning == null) { "本地数据读取异常，已阻止覆盖。请先保留备份。" }
         check(prefs.edit().putString("state", StateCodec.encode(state)).commit()) { "保存失败，请检查手机存储空间" }
+    }
+
+    fun update(change: (PocketState) -> PocketState): PocketState = synchronized(lock) {
+        val old = load()
+        val next = change(old)
+        if (next != old) save(next)
+        next
     }
 }
 
@@ -33,6 +41,8 @@ object StateCodec {
     fun encode(state: PocketState): String = JSONObject().apply {
         put("version", 1)
         put("campus", state.campus.name)
+        put("themeColor", state.themeColor); put("fontScale", state.fontScale); put("weekView", state.weekView); put("autoSampling", state.autoSampling); put("reduceMotion", state.reduceMotion)
+        put("textColor", TextColors.normalize(state.textColor))
         put("semesterStart", state.semesterStart)
         put("totalWeeks", state.totalWeeks)
         put("scheduleImportedAt", state.scheduleImportedAt)
@@ -78,7 +88,8 @@ object StateCodec {
             note = r.optString("note", "手工抄录自官方服务")) }
         require(readings.all { r -> meters.any { it.id == r.meterId } }) { "读数缺少对应表计" }
         return PocketState(
-            campus = Campus.from(root.optString("campus")), semesterStart = root.optString("semesterStart"), totalWeeks = root.optInt("totalWeeks", 20),
+            textColor = TextColors.normalize(root.optString("textColor", "auto")),
+            campus = Campus.from(root.optString("campus")), themeColor = root.optString("themeColor", "green").let { if (it in listOf("green", "blue", "purple", "orange")) it else if (TextColors.validCustom(it)) TextColors.normalize(it) else "green" }, fontScale = root.optInt("fontScale", 100).coerceIn(85, 130), weekView = root.optBoolean("weekView", false), autoSampling = root.optBoolean("autoSampling", true), reduceMotion = root.optBoolean("reduceMotion", false), semesterStart = root.optString("semesterStart"), totalWeeks = root.optInt("totalWeeks", 20),
             scheduleImportedAt = root.optLong("scheduleImportedAt"),
             courses = root.array("courses").objects().map { c -> Course(id = c.getString("id"), name = c.getString("name"),
                 teacher = c.optString("teacher"), location = c.optString("location"), day = c.getInt("day"),

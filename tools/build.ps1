@@ -1,4 +1,4 @@
-param([switch]$TestOnly)
+param([switch]$TestOnly, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $toolRoot = Join-Path $projectRoot '.toolchain'
@@ -13,6 +13,7 @@ $env:JAVA_TOOL_OPTIONS = '-Djava.net.preferIPv4Stack=true "-Djava.io.tmpdir=' + 
 Push-Location $projectRoot
 try {
     if ($TestOnly) { & .\gradlew.bat :app:testDebugUnitTest --no-daemon --console=plain }
+    elseif ($Release) { & .\gradlew.bat :app:testDebugUnitTest :app:testReleaseUnitTest :app:assembleRelease :app:lintRelease --no-daemon --console=plain --stacktrace }
     else { & .\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain --stacktrace }
     if ($LASTEXITCODE -ne 0) { throw "Gradle exited with $LASTEXITCODE" }
 } finally { Pop-Location }

@@ -12,3 +12,6 @@ keystore.properties
 *.iml
 captures/
 deliverables/
+.private-signing/
+__pycache__/
+*.pyc

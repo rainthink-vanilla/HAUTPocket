@@ -51,3 +51,53 @@
 ## 校园卡
 
 当前仅提供完美校园 App 入口，未编写原生校园卡余额/流水客户端。不能用“智能水电余额”替代校园卡余额，也不能把郑大 `ecard.v.zzu.edu.cn` 的任何接口改域名后当作河南工大接口。
+
+
+## 2026-10-30 图书馆入口核实
+
+- 官网 https://lib.haut.edu.cn/index.htm 的“馆藏书目检索”实际指向 https://libspace.haut.edu.cn/space/ ，本版通过已有安全WebView加载；公网探测超时，需校园网和设备验证。
+- 较新的2025-04-01通知 https://lib.haut.edu.cn/info/1162/12015.htm 要求预约统一从云上工大首页“图书馆空间预约”进入；因此不沿用旧通知的微信小程序，也不猜测未公开的App内部深链。新“图书馆”页的座位预约按钮唤起官方App，尚不能直达原生选座页面。
+- UI只聚合两个功能入口；书目结果及预约流程仍由官方系统提供。不会自动携带教务凭据到预约系统。
+- Android周期任务并非精确闹钟：https://developer.android.com/reference/androidx/work/PeriodicWorkRequest 。0.5.0通过提高检查频率、保留白天最近样本降低漏整天的概率，并不承诺手机后台准点。
+
+
+## 2026-10-30 0.5.1 手机跳转日志验证（取代上节预约仅唤起App的限制）
+
+连接用户安卓手机，读取云上工大1.3.8当前进程的近期跳转日志，脱敏后发现实际H5地址：
+
+- 预约首页：`https://wslib.haut.edu.cn/h5/index.html#/pages/SeatBooking/SeatBooking`
+- 区域列表：`https://wslib.haut.edu.cn/h5/index.html#/seatPage/SelectRoom/SelectRoom`
+- 原应用跳转含token参数；应用只采用不带参数的官方地址，不复制或硬编码令牌。
+
+用户手机Edge浏览器加载不带token的预约首页成功；用户明确确认点“座位预约”可进入选座列表。0.5.1内嵌区域列表页面，保留云上工大备用入口。PC公网请求TLS连接失败，因此不能据此判断手机端不可达。尚未提交预约，也未验证独立WebView首次认证；不声称已全程预约联调。
+
+本次是应用跳转日志读取，未配置HTTPS中间人代理，未安装证书，未修改手机网络代理。没有将原始日志、令牌、手机截图或官方APK纳入交付源码。
+
+
+## 0.5.3 预约认证边界
+
+用户进一步测试发现公开列表不代表已登录：确定预约时进入学校mapp认证。本人完成认证后返回官方H5根首页，URL由校方附加会话令牌。原生应用不读取令牌，只在确认从学校登录返回官方H5时尝试一次hash导航到区域列表；可通过“继续选座”手动导航。学校网页的cookie/localStorage继续由原有WebView管理。完整实际提交预约未执行。
+
+复用Android WebView.evaluateJavascript与已有官方域名白名单；新增判定限制在精确的图书馆H5文档与已观察到的学校CAS登录路径。外部域名、HTTP、非标准端口与其他文档不触发回跳。
+
+
+## 0.6.0 展示层适配
+
+`assets/library-design.js`与CSS在精确的官方H5文档和SelectRoom/SelectSeat两个路由内运行，通过原始类名增强布局，未调用非官方预约API或创建JavaScript原生桥。只读区域/座位标签、公开余量及官方状态图例；自有输入仅用于过滤已加载项。data URL图标与图例图像按相同src匹配，未知状态保留官方图标。原版切换移除新增控件并取消样式作用域，原始节点与事件始终保留。
+
+校方DOM变更需重新核查；右上角可回到原版。图书馆网页会在某些导航或刷新时重载，因此每次onPageFinished重新配置展示增强；同文档路由变动使用hashchange/MutationObserver适配。脚本不读取账号、密码、Cookie或令牌，不自动查询座位API、不提交预约。
+
+
+## 0.7.0 图书查询与文字颜色
+
+实际移动馆藏入口为https://libspace.haut.edu.cn/mspace/search，结果为/mspace/searchList，详情为/mspace/searchDetailLocal/书目ID，原入口/space/保留作重定向入口。新增catalog-design资源只覆盖已核实检索路由，不覆盖登录与个人页面；使用现有Vant搜索、筛选、排序、分页和纸本馆藏弹层。新增统计只表示已加载项，不能替代校方全量查询。
+
+TextColors负责自有界面与WebView的正文/辅助文字配色。预设针对明暗背景分别设置；自定义HEX经过规范化后写入CSS变量，不允许CSS片段。原版网页不受自定义颜色覆盖。用户明确确认的智能水电今日用量为kWh，历史raw不迁移，图表统一显示kWh；余额和其他设备类型仍不擅自推断单位。
+
+## 0.8.0 独立图书查询
+
+底栏图书馆的查书入口改为CatalogActivity，使用Compose Material3展示搜索框、书目列表和馆藏详情。底层保留同一官方WebView会话，用户可通过“完整检索”完成高级筛选、查看地图或学校认证，再返回应用界面。
+
+catalog-snapshot.js只在已核实的libspace.haut.edu.cn检索路由提取公开DOM字段，不读取登录表单、Cookie、存储或令牌。搜索由已核实的官方AlphaCommonHeader.onSearch处理；书目选择校验原始行号和标题后触发原节点，更多结果沿用官方滚动加载。无自建馆藏API、无伪造数据、无借阅提交操作。学校DOM或组件变化会导致适配失败，此时显示错误并提供完整检索入口。官网前置认证仍可能阻止搜索，需要本人在官方页面继续，不能绕过。
+
+封面使用官网当前结果中的img来源，允许libspace.haut.edu.cn、ddimg.cn子域与img.hwlsp.cn的无查询参数HTTPS图片，不把WebView凭据传给图片请求。缺图或失败保留图书图标；官网自身提供占位图时沿用其内容。点击封面放大预览；详情无图片节点时，仅在书名一致时沿用用户选中结果的封面。复用[Coil](https://github.com/coil-kt/coil/tree/2.7.0)的AsyncImage加载、缩放与缓存，2.7.0使用Kotlin2.0与Compose1.6，兼容本项目既有工具链，未为图片加载升级应用框架。

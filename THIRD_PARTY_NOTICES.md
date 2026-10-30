@@ -37,6 +37,10 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 AndroidX / Jetpack Compose, Kotlin and JUnit are dependencies, licensed by their respective upstream projects. Dependencies are resolved by Gradle and are not checked into this source tree.
 
+## Coil
+
+Book-cover thumbnails and previews use Coil 2.7.0 (https://github.com/coil-kt/coil/tree/2.7.0), Copyright 2023 Coil Contributors, under the Apache License, Version 2.0. The upstream license is included in `licenses/Coil-LICENSE.txt`. Public cover images remain the property of their respective rightsholders and are not bundled in the source distribution.
+
 ## Protocol research
 
 The school name/code mapping and endpoint/field facts are attributed in `docs/INTEGRATIONS.md`. GPL/AGPL and unlicensed reference project source files were not copied into this project.

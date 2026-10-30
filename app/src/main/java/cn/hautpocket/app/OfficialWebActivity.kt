@@ -41,6 +41,13 @@ class OfficialWebActivity : ComponentActivity() {
     private var preview by mutableStateOf<ScheduleParser.Result?>(null)
     private var currentUrl: String = ""
     private var importGeneration = 0
+    private var libraryFlow = false
+    private var catalogFlow = false
+    private var libraryAuthPending = false
+    private var libraryCanContinue by mutableStateOf(false)
+    private var libraryRedesigned by mutableStateOf(true)
+    private var designStatus by mutableStateOf("正在加载页面")
+    private var designGeneration = 0
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,22 +55,46 @@ class OfficialWebActivity : ComponentActivity() {
         val url = intent.getStringExtra("url") ?: OfficialServices.TEACHING
         if (!OfficialServices.canBrowse(url)) { finish(); return }
         currentUrl = url
+        libraryFlow = OfficialServices.isLibraryH5(url)
+        catalogFlow = OfficialServices.isLibraryCatalog(url)
+        val designPreference = if (catalogFlow) "catalog-redesigned" else "redesigned"
+        libraryRedesigned = getSharedPreferences("library-ui", MODE_PRIVATE).getBoolean(designPreference, true)
         val title = intent.getStringExtra("title") ?: "官方服务"
         val importEnabled = intent.getBooleanExtra("import", false)
-        setContent { PocketTheme {
+        val appearance = PocketStore(this).load()
+        setContent { PocketTheme(appearance.themeColor, appearance.textColor) {
             Scaffold(
-                topBar = { TopAppBar(title = { Column { Text(title); Text(host, style = MaterialTheme.typography.labelSmall) } },
+                topBar = { Column { TopAppBar(title = { Column { Text(title); Text(host, style = MaterialTheme.typography.labelSmall) } },
                     navigationIcon = { IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") } },
                     actions = {
                         IconButton(onClick = { error = null; web?.reload() }) { Icon(Icons.Outlined.Refresh, "重新加载") }
                         IconButton(onClick = { external(currentUrl) }) { Icon(Icons.AutoMirrored.Outlined.OpenInNew, "用浏览器打开") }
-                    }) },
+                    })
+                    if (libraryFlow || catalogFlow) Surface(tonalElevation = 2.dp) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("新版界面", style = MaterialTheme.typography.labelLarge)
+                                Text(if (libraryRedesigned) designStatus else "已关闭 · 使用原版", style = MaterialTheme.typography.labelSmall)
+                            }
+                            Switch(checked = libraryRedesigned, onCheckedChange = { enabled ->
+                                libraryRedesigned = enabled
+                                getSharedPreferences("library-ui", MODE_PRIVATE).edit().putBoolean(designPreference, enabled).apply()
+                                applyLibraryDesign()
+                            })
+                        }
+                    }
+                } },
                 bottomBar = { if (importEnabled) Surface(tonalElevation = 3.dp) {
                     Column(Modifier.navigationBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("在学校页面登录，进入“学生课表查询”并选好学期。", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { importSchedule() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                             Text(if (busy) "正在读取课表…" else "导入当前学期课表")
                         }
+                    }
+                } else if (libraryFlow) Surface(tonalElevation = 3.dp) {
+                    Row(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(if (libraryCanContinue) "座位状态以当前查询时段为准" else "请在学校页面完成登录", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { web?.evaluateJavascript(LIBRARY_CONTINUE_SCRIPT, null) }, enabled = libraryCanContinue) { Text("区域列表") }
                     }
                 } },
             ) { padding ->
@@ -105,12 +136,30 @@ class OfficialWebActivity : ComponentActivity() {
                 return true
             }
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                designGeneration++
+                designStatus = "正在加载页面"
                 currentUrl = url
                 host = runCatching { Uri.parse(url).host.orEmpty() }.getOrDefault("")
                 loading = true
+                libraryCanContinue = libraryFlow && OfficialServices.isLibraryH5(url)
+                if (libraryFlow && OfficialServices.isLibraryLogin(url)) libraryAuthPending = true
                 if (busy) { importGeneration++; busy = false }
             }
-            override fun onPageFinished(view: WebView, url: String) { loading = false }
+            override fun onPageFinished(view: WebView, url: String) {
+                loading = false
+                applyLibraryDesign()
+                if (libraryFlow && libraryAuthPending && OfficialServices.isLibraryH5(url)) {
+                    libraryAuthPending = false
+                    // Allow the official H5 app to consume its own authentication callback.
+                    handler.postDelayed({ web?.evaluateJavascript(LIBRARY_RETURN_SCRIPT, null) }, 1200)
+                }
+            }
+            override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
+                currentUrl = url
+                host = Uri.parse(url).host.orEmpty()
+                // History API navigation does not necessarily emit onPageFinished.
+                if (libraryFlow || catalogFlow) handler.post { applyLibraryDesign() }
+            }
             override fun onReceivedSslError(view: WebView, sslHandler: SslErrorHandler, sslError: SslError) {
                 sslHandler.cancel()
                 error = "学校网页证书校验失败，已停止连接。请稍后重试。"
@@ -124,6 +173,28 @@ class OfficialWebActivity : ComponentActivity() {
             }
         }
         loadUrl(url)
+    }
+
+    private fun applyLibraryDesign() {
+        if (!libraryFlow && !catalogFlow) return
+        val current = web?.url.orEmpty()
+        if (!((libraryFlow && OfficialServices.isLibraryH5(current)) || (catalogFlow && OfficialServices.isLibraryCatalog(current)))) {
+            designStatus = "此页面保留官方界面"
+            return
+        }
+        val generation = ++designGeneration
+        designStatus = if (libraryRedesigned) "正在应用新版界面" else "已关闭 · 使用原版"
+        web?.evaluateJavascript(LibraryPageDesign.script(this, libraryRedesigned, catalogFlow)) { raw ->
+            if (generation != designGeneration || isDestroyed) return@evaluateJavascript
+            val result = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull()
+            designStatus = when (result) {
+                "applied" -> "新版样式已应用"
+                "disabled" -> "已关闭 · 使用原版"
+                "unsupported" -> "此页面保留官方界面"
+                "waiting" -> "页面准备中，可稍后刷新"
+                else -> "样式未加载，请刷新重试"
+            }
+        }
     }
 
     private fun importSchedule() {
@@ -175,6 +246,20 @@ class OfficialWebActivity : ComponentActivity() {
     }
 
     companion object {
+        // Navigate inside the official document. Do not reconstruct or read token-bearing URLs.
+        private const val LIBRARY_CONTINUE_SCRIPT = """
+            (() => {
+              if (location.origin !== 'https://wslib.haut.edu.cn' || location.pathname !== '/h5/index.html') return;
+              location.hash = '/seatPage/SelectRoom/SelectRoom';
+            })();
+        """
+        private const val LIBRARY_RETURN_SCRIPT = """
+            (() => {
+              if (location.origin !== 'https://wslib.haut.edu.cn' || location.pathname !== '/h5/index.html') return;
+              if (location.hash && location.hash !== '#' && location.hash !== '#/') return;
+              location.hash = '/seatPage/SelectRoom/SelectRoom';
+            })();
+        """
         fun open(context: Context, title: String, url: String, allowImport: Boolean = false) {
             context.startActivity(Intent(context, OfficialWebActivity::class.java).putExtra("title", title).putExtra("url", url).putExtra("import", allowImport))
         }

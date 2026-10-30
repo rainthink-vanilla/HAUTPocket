@@ -77,6 +77,12 @@ data class OnlineRoom(val id: String, val name: String, val devices: List<Online
 
 data class PocketState(
     val campus: Campus = Campus.LIANHUA,
+    val themeColor: String = "green",
+    val textColor: String = "auto",
+    val fontScale: Int = 100,
+    val weekView: Boolean = false,
+    val autoSampling: Boolean = true,
+    val reduceMotion: Boolean = false,
     val semesterStart: String = "",
     val totalWeeks: Int = 20,
     val courses: List<Course> = emptyList(),

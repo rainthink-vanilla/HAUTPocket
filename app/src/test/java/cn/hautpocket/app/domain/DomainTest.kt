@@ -6,6 +6,16 @@ import org.junit.Test
 import java.time.LocalDate
 
 class DomainTest {
+    @Test fun displayPreferencesSurviveRestartAndOldDataGetsDefaults() {
+        val customized = PocketState(themeColor = "blue", textColor = "#E0EBE7", fontScale = 115, weekView = true, reduceMotion = true, campus = Campus.SONGSHAN)
+        assertEquals(customized, StateCodec.decode(StateCodec.encode(customized)))
+        val legacy = StateCodec.decode("""{"version":1,"campus":"LIANHUA"}""")
+        assertEquals("green", legacy.themeColor)
+        assertEquals("auto", legacy.textColor)
+        assertEquals(100, legacy.fontScale)
+        assertFalse(legacy.weekView)
+        assertFalse(legacy.reduceMotion)
+    }
     @Test fun semesterBoundsDoNotPretendToKnowAnUnsetCalendar() {
         assertNull(semesterWeek("", LocalDate.parse("2026-10-27"), 20))
         assertNull(semesterWeek("2026-09-07", LocalDate.parse("2026-09-06"), 20))
